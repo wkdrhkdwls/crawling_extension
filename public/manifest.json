@@ -4,11 +4,14 @@
   "version": "1.0.0",
   "permissions": ["tabs", "scripting", "activeTab"],
   "host_permissions": ["https://www.coupang.com/*", "https://www.11st.co.kr/*"],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.coupang.com/*", "https://www.11st.co.kr/*"],
-      "js": ["contents.js"]
+      "js": ["contents.js"],
+      "type": "module"
     }
   ]
 }
