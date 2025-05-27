@@ -1,78 +1,97 @@
-import type { ICrawler, Product } from "../interface/Crawling";
+import type { ICrawler, Product, Domain } from "../interface/Crawling";
 
-/**
- * 쿠팡 상품 페이지에서 데이터를 추출하는 크롤러
- */
 export class CoupangCrawler implements ICrawler {
-  constructor(private url: string) {}
+  constructor(private readonly url: string) {}
+
+  private static readonly PRODUCT_ID_RE = /\/vp\/products\/(\d+)/;
+  private static readonly NON_DIGIT = /\D/g;
 
   async crawl(): Promise<Product> {
-    // URL에서 상품 ID 파싱
-    const product_id = this.url.split("/vp/products/")[1].split("?")[0];
+    const idMatch = CoupangCrawler.PRODUCT_ID_RE.exec(this.url);
+    // 상품 ID
+    const product_id = idMatch ? idMatch[1] : "";
 
-    // 페이지 주요 요소 로딩 대기
     await this.waitForSelector(".prod-buy-header__title");
 
-    // DOM에서 정보 추출
-    const title =
-      document.querySelector(".prod-buy-header__title")?.textContent?.trim() ??
-      "";
-    const priceText =
-      document.querySelector("span.total-price > strong")?.textContent ?? "";
-    const price = Number(priceText.replace(/[\.,₩\s]/g, "")) || 0;
-    const image =
-      (
-        document.querySelector(
-          ".prod-image__detail .prod-image__image"
-        ) as HTMLImageElement
-      )?.src ?? "";
-    const soldout = !!document.querySelector(".out-of-stock-badge");
+    // 상품명
+    const titleEl = document.querySelector<HTMLElement>(
+      ".prod-buy-header__title"
+    );
+    const title = titleEl?.textContent?.trim() ?? "";
 
-    // 옵션 목록
-    const options: string[] = Array.from(
-      document.querySelectorAll(".prod-option__item select option")
-    )
-      .map((opt) => (opt as HTMLOptionElement).text.trim())
-      .filter(Boolean);
+    // 이미지
+    const imgEl = document.querySelector<HTMLImageElement>(
+      ".prod-image-container .prod-image__item--active img"
+    );
+    let image = "";
+    if (imgEl) {
+      if (imgEl.src && !/no_img/.test(imgEl.src)) {
+        image = imgEl.src;
+      } else if (imgEl.dataset.src) {
+        const ds = imgEl.dataset.src;
+        image = ds.startsWith("//") ? `https:${ds}` : ds;
+      }
+    }
+
+    // 상품 가격
+    const priceEl = document.querySelector<HTMLSpanElement>(
+      ".prod-sale-price .total-price > strong"
+    );
+    const rawPrice = priceEl?.textContent?.trim() ?? "";
+    const price = Number(rawPrice.replace(CoupangCrawler.NON_DIGIT, "")) || 0;
+
+    // 모델명
+    const model_name = title.split(/\s+/)[0] ?? "";
 
     // 배송비
-    const shippingText =
-      document.querySelector(".delivery-fee-info")?.textContent ?? "";
-    const shipping_fee = /\d+/.test(shippingText)
-      ? Number(shippingText.replace(/[^0-9]/g, ""))
-      : 0;
+    const feeEl = document.querySelector<HTMLSpanElement>(".shipping-fee-txt");
+    const feeText = feeEl?.textContent?.trim() ?? "";
+    const shipping_fee = feeText.includes("무료배송")
+      ? 0
+      : Number(feeText.replace(CoupangCrawler.NON_DIGIT, "")) || 0;
+
+    // 품절 여부
+    const soldout = !!document.querySelector(".out-of-stock-badge");
+
+    // 도메인
+    const hostname = new URL(this.url).hostname.replace(/^www\./, "");
+    const domain = hostname.split(".")[0] as Domain;
 
     return {
       product_id,
       title,
       image,
       price,
-      model_name: title.split(" ")[0] ?? "",
+      model_name,
       shipping_fee,
       return_fee: null,
       soldout,
-      domain: "coupang",
-      options,
+      domain,
     };
   }
 
   /**
-   * 특정 셀렉터가 나타날 때까지 폴링
+   * waitForSelector 을 MutationObserver 기반으로 개선
    */
-  private waitForSelector(selector: string, timeout = 10000): Promise<void> {
+  private waitForSelector(selector: string, timeout = 10_000): Promise<void> {
     return new Promise((resolve, reject) => {
-      const start = Date.now();
-      const interval = setInterval(() => {
+      if (document.querySelector(selector)) return resolve();
+
+      const observer = new MutationObserver((_, obs) => {
         if (document.querySelector(selector)) {
-          clearInterval(interval);
+          obs.disconnect();
           resolve();
-        } else if (Date.now() - start > timeout) {
-          clearInterval(interval);
-          reject(
-            new Error(`Selector ${selector} not found within ${timeout}ms`)
-          );
         }
-      }, 100);
+      });
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+      });
+
+      setTimeout(() => {
+        observer.disconnect();
+        reject(new Error(`Selector ${selector} not found within ${timeout}ms`));
+      }, timeout);
     });
   }
 }
