@@ -1,6 +1,6 @@
 import type { Product } from "./interface/Crawling";
 import { CoupangCrawler } from "./service/CoupangCrawling";
-import { ElevenStCrawler } from "./service/ElevenCrawling";
+import { ElevenStCrawler } from "./service/ElevenstCrawling";
 
 async function copyToClipboard(text: string): Promise<void> {
   try {
