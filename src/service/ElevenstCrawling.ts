@@ -1,27 +1,26 @@
 import type { ICrawler, Product, Domain } from "../interface/Crawling";
 
-export class CoupangCrawler implements ICrawler {
+export class ElevenStCrawler implements ICrawler {
   constructor(private readonly url: string) {}
 
-  private static readonly PRODUCT_ID_RE = /\/vp\/products\/(\d+)/;
+  private static readonly PRODUCT_ID_RE = /\/products\/(\d+)/;
   private static readonly NON_DIGIT = /\D/g;
 
   async crawl(): Promise<Product> {
-    const idMatch = CoupangCrawler.PRODUCT_ID_RE.exec(this.url);
-    // 상품 ID
+    const idMatch = ElevenStCrawler.PRODUCT_ID_RE.exec(this.url);
     const product_id = idMatch ? idMatch[1] : "";
 
-    await this.waitForSelector(".prod-buy-header__title");
+    await this.waitForSelector(".c_product_info_title_coupon h1.title");
 
     // 상품명
     const titleEl = document.querySelector<HTMLElement>(
-      ".prod-buy-header__title"
+      ".c_product_info_title_coupon h1.title"
     );
     const title = titleEl?.textContent?.trim() ?? "";
 
     // 이미지
     const imgEl = document.querySelector<HTMLImageElement>(
-      ".prod-image-container .prod-image__item--active img"
+      ".c_product_view_img img"
     );
     let image = "";
     if (imgEl) {
@@ -33,25 +32,27 @@ export class CoupangCrawler implements ICrawler {
       }
     }
 
-    // 상품 가격
+    // 최종 할인 가격
     const priceEl = document.querySelector<HTMLSpanElement>(
-      ".prod-sale-price .total-price > strong"
+      "#finalDscPrcArea .price .value"
     );
     const rawPrice = priceEl?.textContent?.trim() ?? "";
-    const price = Number(rawPrice.replace(CoupangCrawler.NON_DIGIT, "")) || 0;
+    const price = Number(rawPrice.replace(ElevenStCrawler.NON_DIGIT, "")) || 0;
 
     // 모델명
     const model_name = title.split(/\s+/)[0] ?? "";
 
     // 배송비
-    const feeEl = document.querySelector<HTMLSpanElement>(".shipping-fee-txt");
+    const feeEl = document.querySelector<HTMLElement>(".delivery dt");
     const feeText = feeEl?.textContent?.trim() ?? "";
     const shipping_fee = feeText.includes("무료배송")
       ? 0
-      : Number(feeText.replace(CoupangCrawler.NON_DIGIT, "")) || 0;
+      : Number(feeText.replace(ElevenStCrawler.NON_DIGIT, "")) || 0;
 
     // 품절 여부
-    const soldout = !!document.querySelector(".out-of-stock-badge");
+    const soldout = !!document.querySelector(
+      ".out-of-stock-badge, .sold-out, .oos-icon"
+    );
 
     // 도메인
     const hostname = new URL(this.url).hostname.replace(/^www\./, "");
