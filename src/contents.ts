@@ -3,23 +3,24 @@ import { CoupangCrawler } from "./service/CoupangCrawling";
 import { ElevenStCrawler } from "./service/ElevenstCrawling";
 
 async function copyToClipboard(text: string): Promise<void> {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  ta.setAttribute("readonly", "");
+  document.body.appendChild(ta);
+  ta.select();
+
   try {
-    await navigator.clipboard.writeText(text);
-    console.log("✅ 클립보드에 복사했습니다.");
-  } catch (err) {
-    console.warn("⚠️ Clipboard 실패", err);
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-      console.log("✅ 클립보드에 복사했습니다.");
-    } catch (e) {
-      console.error("❌ 복사 실패:", e);
+    const successful = document.execCommand("copy");
+    if (successful) {
+      console.log("✅ 클립보드에 복사했습니다. (execCommand)");
+    } else {
+      console.warn("⚠️ execCommand 복사 실패");
     }
+  } catch (e) {
+    console.error("❌ 복사 실패:", e);
+  } finally {
     document.body.removeChild(ta);
   }
 }

@@ -3,7 +3,7 @@
   "name": "Castingn 크롤링 익스텐션",
   "version": "1.0.0",
 
-  "permissions": ["activeTab", "scripting", "clipboardWrite"],
+  "permissions": ["activeTab", "scripting", "clipboardWrite", "webNavigation"],
   "host_permissions": ["https://www.coupang.com/*", "https://www.11st.co.kr/*"],
 
   "background": {
@@ -13,12 +13,5 @@
 
   "action": {
     "default_title": "크롤링 결과 복사"
-  },
-
-  "content_scripts": [
-    {
-      "matches": ["https://www.coupang.com/*", "https://www.11st.co.kr/*"],
-      "js": ["contents.js"]
-    }
-  ]
+  }
 }
